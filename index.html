@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Guess the Number — Pritam Jana</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container">
+    <section class="card" id="gameCard">
+      <header class="head">
+        <h1>Guess The Number</h1>
+        <div class="sub">A tiny game by <strong>Pritam Jana</strong></div>
+      </header>
+
+      <p class="hint">I'm thinking of a number between <span id="min">1</span> and <span id="max">100</span>.</p>
+
+      <div class="inputRow">
+        <input id="guessInput" inputmode="numeric" type="number" placeholder="Enter guess" min="1" />
+        <button id="guessBtn" class="btn">Guess</button>
+      </div>
+
+      <div id="feedback" class="feedback" aria-live="polite">Ready when you are.</div>
+
+      <div class="infoRow">
+        <div id="attempts">Attempts: 0</div>
+        <div id="time">⏱ 0s</div>
+      </div>
+
+      <div class="controls">
+        <button id="newBtn" class="btn alt">New Game</button>
+        <select id="difficulty" class="small">
+          <option value="20">Easy (1–20)</option>
+          <option value="100" selected>Medium (1–100)</option>
+          <option value="1000">Hard (1–1000)</option>
+        </select>
+      </div>
+
+      <div id="past" class="past">Past: —</div>
+
+      <footer class="creator">Made with 🔥 by <strong>Pritam Jana</strong></footer>
+    </section>
+  </main>
+
+  <script>
+    // Minimal, modern game script with sound via Web Audio API
+    (function(){
+      const MIN = 1;
+      let MAX = 100, secret = 0, tries = 0, startedAt = null, timerInterval = null, past = [];
+
+      const el = id => document.getElementById(id);
+      const guessInput = el('guessInput'), guessBtn = el('guessBtn'), newBtn = el('newBtn');
+      const feedback = el('feedback'), attemptsEl = el('attempts'), timeEl = el('time');
+      const pastEl = el('past'), minEl = el('min'), maxEl = el('max'), difficulty = el('difficulty');
+
+      // roast lines
+      const roasts = [
+        "Bro, seriously? You are such a noob. 😂",
+        "You are so silly — try focusing! 😜",
+        "Come on, don't embarrass yourself. 😅",
+        "That's rough. Maybe coffee first? ☕",
+        "Plot twist: the number hates you. 🤡",
+        "Legend says this number ran away. You're still chasing. 🏃‍♂️",
+        "At this point the number's filing a restraining order. 🤖",
+        "Is your keyboard connected? Just asking. ⌨️"
+      ];
+
+      // Web Audio helper (tiny beeps and success chime)
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      function tone(freq, dur, type='sine', gain=0.08){
+        const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        o.type = type; o.frequency.value = freq; g.gain.value = gain;
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur/1000);
+        setTimeout(()=>{ try{ o.stop(); }catch(e){} }, dur);
+      }
+      function successSound(){ tone(880,220,'sine',0.12); setTimeout(()=>tone(660,140,'triangle',0.1),130); }
+      function errorSound(){ tone(180,120,'sawtooth',0.06); }
+
+      function rnd(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+      function startTimer(){ startedAt = Date.now(); timeEl.textContent = '⏱ 0s';
+        timerInterval = setInterval(()=>{ const s = Math.floor((Date.now()-startedAt)/1000); timeEl.textContent = `⏱ ${s}s`; if(s>20 && s%10===0) maybeRoast(true); },1000);
+      }
+      function stopTimer(){ clearInterval(timerInterval); timerInterval=null; }
+
+      function maybeRoast(timeBased=false){
+        // random roast selection; timeBased if triggered by time
+        const r = roasts[Math.floor(Math.random()*roasts.length)];
+        feedback.textContent = r; errorSound();
+      }
+
+      function newGame(){
+        MAX = parseInt(difficulty.value,10);
+        secret = rnd(MIN,MAX); tries=0; past=[]; minEl.textContent = MIN; maxEl.textContent = MAX; feedback.textContent = 'New game — make a guess!';
+        attemptsEl.textContent = 'Attempts: 0'; pastEl.textContent = 'Past: —'; guessInput.disabled=false; guessBtn.disabled=false; guessInput.value=''; guessInput.focus(); stopTimer(); startTimer();
+      }
+
+      function makeGuess(){
+        const raw = guessInput.value.trim(); const num = parseInt(raw,10);
+        if(!raw || Number.isNaN(num)){ feedback.textContent='Enter a valid number.'; errorSound(); return; }
+        if(num<MIN || num>MAX){ feedback.textContent = `Pick between ${MIN} and ${MAX}.`; errorSound(); return; }
+
+        tries++; past.push(num); attemptsEl.textContent = `Attempts: ${tries}`; pastEl.textContent = `Past: ${past.join(', ')}`;
+
+        if(num===secret){ feedback.textContent = `🎉 Correct! ${secret} — ${tries} ${tries===1?'try':'tries'}.`; successSound(); guessInput.disabled=true; guessBtn.disabled=true; stopTimer(); document.getElementById('gameCard').classList.add('win'); }
+        else if(num<secret){ feedback.textContent = 'Too low — try higher.'; tone(300,90); guessInput.select(); if(tries>=5) maybeRoast(); }
+        else { feedback.textContent = 'Too high — try lower.'; tone(220,90); guessInput.select(); if(tries>=5) maybeRoast(); }
+      }
+
+      // events
+      guessBtn.addEventListener('click', makeGuess); guessInput.addEventListener('keydown', e=>{ if(e.key==='Enter') makeGuess(); }); newBtn.addEventListener('click', ()=>{ document.getElementById('gameCard').classList.remove('win'); newGame(); }); difficulty.addEventListener('change', ()=>{ document.getElementById('gameCard').classList.remove('win'); newGame(); });
+
+      // init
+      newGame();
+    })();
+  </script>
+</body>
+</html>
